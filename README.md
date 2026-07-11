@@ -1,8 +1,54 @@
 # opencode-chain-prompt
 
-OpenCode plugin for **sequential chain prompting** with per-step agent selection, looping, and conditional branching. Executes chains via the OpenCode SDK — fully automated.
+Run multi-step AI workflows in [OpenCode](https://opencode.ai) — fully automated, sequentially chained, with per-step agent control.
 
-## Installation
+```
+User                            Plugin
+ │                                │
+ ├─ /chain generate-component    │
+ │   "button"                    │
+ │                                │
+ │  ┌── Step 1: generate ──────┐  │
+ │  │  agent: build            │  │
+ │  │  "Create a Button        │  │
+ │  │   component..."          │  │
+ │  └──────────────────────────┘  │
+ │           │                    │
+ │  ┌── Step 2: validate ──────┐  │
+ │  │  agent: code-reviewer    │  │
+ │  │  "Review the code..."    │  │
+ │  │  (read-only)             │  │
+ │  └──────────────────────────┘  │
+ │           │                    │
+ │  ┌── Step 3: commit ────────┐  │
+ │  │  agent: build            │  │
+ │  │  "Commit with message"   │  │
+ │  │  (only if success)       │  │
+ │  └──────────────────────────┘  │
+ │           │                    │
+ │  ◀── Result ───────────────── │
+```
+
+Instead of asking the AI to do everything at once (which often produces mediocre results), break it down into focused steps — each with its own agent, model, system prompt, and permissions.
+
+Execute the entire pipeline in one command. Repeat it 22 times with a single `loop` setting.
+
+---
+
+## Why?
+
+| Problem | Solution |
+|---------|----------|
+| One-shot prompting ignores validation | Split into generate → validate → commit |
+| Code review needs a stricter persona | Assign `code-reviewer` agent with `edit: deny` |
+| Repetitive tasks done manually | Set `loop: 22` and walk away |
+| Context gets polluted across steps | Each step runs in its own session |
+
+---
+
+## Install
+
+### Via npm
 
 ```json
 // opencode.json
@@ -11,40 +57,110 @@ OpenCode plugin for **sequential chain prompting** with per-step agent selection
 }
 ```
 
-## Usage
+### Local / development
+
+```json
+// opencode.json
+{
+  "plugin": ["/absolute/path/to/opencode-chain-prompt/dist/index.js"]
+}
+```
+
+> **Note:** After adding the plugin, restart opencode for it to take effect. The `/chain` command and `chain_start` / `chain_list` tools become available automatically.
+
+---
+
+## Quick Start
 
 ### 1. Define a chain
 
-Create `.opencode/chains/<name>.md` (project) or `~/.config/opencode/chains/<name>.md` (global):
+Create a file at `.opencode/chains/generate-component.md`:
 
 ```markdown
 ---
 name: generate-component
 description: Generate, validate, and commit a React component
+default_agent: build
 default_model: anthropic/claude-sonnet-4-6
 loop: 1
 steps:
   - id: generate
-    agent: build
     prompt: |
       Generate a React {input} component with Tailwind CSS.
-      Use TypeScript. Create file in src/components/.
+      Use TypeScript. Create the file in src/components/.
+
   - id: validate
     agent: code-reviewer
-    prompt: |
-      Review the component for best practices,
-      accessibility, and TypeScript correctness.
-  - id: commit
-    agent: build
     condition: on_success
     prompt: |
-      Commit changes with a conventional commit message.
----
+      Review the component for:
+      - Best practices and code quality
+      - Accessibility (ARIA labels, keyboard navigation)
+      - Performance (unnecessary re-renders)
+      - TypeScript correctness
+      Fix any issues found.
+
+  - id: commit
+    condition: on_success
+    prompt: |
+      Stage and commit the changes.
+      Format: "feat(components): add {input} component"
 ```
 
-### 2. Define agents (optional)
+> `agent` is optional per step — if omitted, it inherits from `default_agent`. Set `agent` explicitly only when a step needs a different role (like `code-reviewer`).
 
-Agent definitions are read from your existing `.opencode/agents/` or `opencode.json` config. Each step uses its agent's model, system prompt, and permissions.
+### 2. Run it
+
+```
+/chain generate-component button
+```
+
+Or ask the AI naturally:
+
+```
+Build a button component using the chain
+```
+
+The AI detects the `chain_start` tool and executes it automatically.
+
+---
+
+## Full Chain Format
+
+### Top-level Fields
+
+| Field            | Required | Default                    | Description                                |
+|------------------|----------|----------------------------|--------------------------------------------|
+| `name`           | yes      | —                          | Chain identifier, lowercase hyphen-separated |
+| `description`    | no       | —                          | Human-readable description                 |
+| `default_agent`  | no       | `"build"`                  | Agent inherited by steps without explicit `agent` |
+| `default_model`  | no       | `anthropic/claude-sonnet-4-6` | Fallback model for the chain              |
+| `loop`           | no       | `1`                        | Number of times to repeat the entire chain |
+
+### Step Fields
+
+| Field       | Required | Default      | Description                                       |
+|-------------|----------|--------------|---------------------------------------------------|
+| `id`        | yes      | —            | Unique step identifier, used as `{id}` in templates |
+| `agent`     | no       | `default_agent` → `"build"` | Agent name for this step                      |
+| `prompt`    | yes      | —            | Instructions sent to the LLM                      |
+| `condition` | no       | `"always"`   | When to execute this step (see branching below)   |
+
+### Agent Resolution
+
+The agent name is resolved with this fallback:
+
+```
+step.agent → chain.default_agent → "build"
+```
+
+Once resolved, the agent config is loaded from (in order):
+
+1. `opencode.json` — `agent.<name>.model`, `agent.<name>.prompt` (system prompt)
+2. `.opencode/agents/<name>.md` — frontmatter + file body = system prompt
+3. `~/.config/opencode/agents/<name>.md`
+
+Example agent definition in `opencode.json`:
 
 ```json
 {
@@ -59,77 +175,110 @@ Agent definitions are read from your existing `.opencode/agents/` or `opencode.j
 }
 ```
 
-### 3. Run the chain
-
-In a conversation with the AI:
-
-```
-Generate a button component using the chain
-```
-
-The AI will call `chain_start({ name: "generate-component", input: "button" })` automatically.
-
-## Chain Format
-
-| Field           | Required | Description                              |
-| --------------- | -------- | ---------------------------------------- |
-| `name`          | yes      | Chain identifier                         |
-| `description`   | no       | Human-readable description               |
-| `default_model` | no       | Fallback model (default: claude-sonnet-4-6) |
-| `loop`          | no       | Number of iterations (default: 1)        |
-| `steps`         | yes      | Array of step definitions                |
-
-### Step Fields
-
-| Field       | Required | Description                                         |
-| ----------- | -------- | --------------------------------------------------- |
-| `id`          | yes      | Step identifier, used for {id} template variables     |
-| `agent`       | yes      | Agent name (resolved from opencode.json or agent files) |
-| `prompt`      | yes      | Prompt template supporting {variables}                |
-| `condition`   | no       | Branching: `always`, `on_success`, `on_error`        |
-
 ### Template Variables
 
-| Variable     | Description                        |
-| ------------ | ---------------------------------- |
-| `{input}`      | User input passed to chain           |
-| `{iteration}`  | Current loop iteration (1-based)     |
-| `{lastResult}` | Result of the previous step          |
-| `{step_id}`    | Result of a specific step by its ID  |
+| Variable         | Description                                   |
+|------------------|-----------------------------------------------|
+| `{input}`        | User input passed to `chain_start`              |
+| `{iteration}`    | Current loop iteration (1-based)              |
+| `{lastResult}`   | Full text output of the previous step         |
+| `{<step-id>}`    | Output of a specific step (e.g. `{generate}`) |
 
 ### Branching Conditions
 
-| Condition   | Behavior                              |
-| ----------- | ------------------------------------- |
-| `always`    | Always execute (default)              |
-| `on_success`| Only if no errors in previous steps   |
-| `on_error`  | Only if previous steps had errors     |
+| Condition    | Behavior                                       |
+|--------------|------------------------------------------------|
+| `"always"`   | Always execute (default)                       |
+| `"on_success"` | Only if no errors occurred in earlier steps    |
+| `"on_error"` | Only if earlier steps produced errors          |
 
-## Usage
+---
 
-After installation, `/chain` command langsung tersedia:
+## Patterns
 
+### Single-agent chain (cleanest)
+
+All steps share the same agent — no repetition needed:
+
+```markdown
+---
+name: refactor-all
+default_agent: build
+loop: 1
+steps:
+  - id: refactor
+    prompt: Refactor {input} to improve code quality.
+  - id: test
+    prompt: Run tests and fix any failures.
+  - id: commit
+    condition: on_success
+    prompt: Commit with a conventional message.
+---
 ```
-/chain generate-component button
-/chain bulk-generate "input text"
-/chain                          # lihat daftar chain
+
+### Multi-agent chain (strict roles)
+
+```markdown
+---
+name: review-and-merge
+default_agent: build
+loop: 1
+steps:
+  - id: implement
+    prompt: Implement {input}.
+  - id: review
+    agent: code-reviewer
+    prompt: Review the implementation. Approve or request changes.
+  - id: merge
+    condition: on_success
+    prompt: |
+      The code was approved. Merge the changes.
+      Previous review: {lastResult}
+---
 ```
 
-Plugin juga register dua tools yang bisa dipanggil AI secara otomatis:
+### Bulk generation (loop)
 
-| Tool / Command  | Description                              |
-| --------------- | ---------------------------------------- |
-| `/chain`        | User-facing command                      |
-| `chain_start`   | Execute a chain by name with input       |
-| `chain_list`    | List all available chain definitions     |
+Generate 22 components automatically:
 
-## Agent Resolution
+```markdown
+---
+name: bulk-generate
+default_agent: build
+loop: 22
+steps:
+  - id: generate
+    prompt: |
+      Generate a React {input} component.
+      Iteration {iteration} of {loop}.
+      Create the file at src/components/.
+  - id: commit
+    condition: on_success
+    prompt: Commit with message "feat: add {input} component (iter {iteration})".
+---
+```
 
-For each step, the plugin resolves the agent config from (in order):
+---
 
-1. `opencode.json` → `agent.<name>`
-2. `.opencode/agents/<name>.md`
-3. `.opencode/agent/<name>.md`
-4. `~/.config/opencode/agents/<name>.md`
+## Available Tools & Commands
 
-Resolved fields: `model`, `system` (from file body), `permission` (edit/bash).
+| Interface  | Name           | Description                                     |
+|------------|----------------|-------------------------------------------------|
+| Command    | `/chain`       | User-facing command — delegates to `chain_start`  |
+| Tool       | `chain_start`  | Execute a chain by name with input               |
+| Tool       | `chain_list`   | List all available chain definitions             |
+
+The AI calls `chain_start` and `chain_list` automatically; you only need to describe what you want.
+
+---
+
+## Related
+
+- [chain-generator skill](.opencode/skills/chain-generator/SKILL.md) — Ask the AI to create a chain definition for you
+- [Example chains](examples/chains/) — Ready-to-use chain files
+
+---
+
+## License
+
+MIT
