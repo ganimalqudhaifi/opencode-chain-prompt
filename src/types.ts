@@ -2,7 +2,7 @@ export type Condition = "always" | "on_success" | "on_error";
 
 export interface ChainStep {
   id: string;
-  agent: string;
+  agent?: string;
   prompt: string;
   condition?: Condition;
 }
@@ -10,6 +10,7 @@ export interface ChainStep {
 export interface ChainDefinition {
   name: string;
   description?: string;
+  default_agent?: string;
   default_model: string;
   loop: number;
   steps: ChainStep[];

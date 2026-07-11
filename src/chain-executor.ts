@@ -135,7 +135,8 @@ export async function executeChain(
         continue;
       }
 
-      const agent = await resolveAgent(step.agent, chainDir);
+      const agentName = step.agent || chain.default_agent || "build";
+      const agent = await resolveAgent(agentName, chainDir);
       const model = agent.model || chain.default_model;
       const prompt = renderTemplate(step.prompt, context, variables);
       const system =

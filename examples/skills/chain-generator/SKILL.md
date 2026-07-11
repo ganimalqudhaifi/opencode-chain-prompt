@@ -39,6 +39,7 @@ steps:
 | --------------- | -------- | ---------------------------------------- |
 | `name`          | yes      | Chain identifier, lowercase hyphen-separated |
 | `description`   | no       | Human-readable description               |
+| `default_agent` | no       | Fallback agent untuk step yang tidak punya `agent` |
 | `default_model` | no       | Fallback model (format: provider/model)   |
 | `loop`          | no       | Number of iterations (default: 1)         |
 | `steps`         | yes      | Array of 2+ step definitions             |
@@ -48,7 +49,7 @@ steps:
 | Field       | Required | Description                                     |
 | ----------- | -------- | ----------------------------------------------- |
 | `id`          | yes      | Unique step identifier, lowercase hyphen-separated |
-| `agent`       | yes      | Agent name (resolved from opencode.json or agent files) |
+| `agent`       | no       | Agent name. Jika tidak diisi, pakai `default_agent` chain → `"build"` |
 | `prompt`      | yes      | Prompt template, supports variables below       |
 | `condition`   | no       | Branching: `always`, `on_success`, `on_error`   |
 
@@ -71,10 +72,42 @@ steps:
 
 ## Agent Resolution
 
-The plugin resolves each `agent` name from (in order):
+Agent name untuk tiap step di-resolve dengan fallback:
+```
+step.agent → chain.default_agent → "build"
+```
+
+Lalu agent config di-resolve dari (in order):
 1. `opencode.json` → `agent.<name>.model` and `agent.<name>.prompt`
 2. `.opencode/agents/<name>.md` (frontmatter + body = system prompt)
 3. `~/.config/opencode/agents/<name>.md`
+
+Jika semua step pakai agent yang sama, cukup set `default_agent` sekali di level chain dan hapus `agent` dari tiap step.
+
+### 0. Simplified: Same Agent for All Steps
+
+Set `default_agent` sekali, semua step mewarisi secara otomatis:
+
+```markdown
+---
+name: refactor-all
+description: Refactor, test, commit — all with build agent
+default_agent: build
+loop: 1
+steps:
+  - id: refactor
+    prompt: |
+      Refactor {input} to improve code quality.
+  - id: test
+    prompt: |
+      Run tests and fix any failures.
+      Previous result: {lastResult}
+  - id: commit
+    condition: on_success
+    prompt: |
+      Commit the changes with a conventional commit message.
+---
+```
 
 ## Common Chain Patterns
 

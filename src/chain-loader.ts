@@ -26,13 +26,10 @@ function validateSteps(raw: unknown): ChainStep[] {
     if (!step.prompt || typeof step.prompt !== "string") {
       throw new Error(`step[${i}]: prompt is required and must be a string`);
     }
-    if (!step.agent || typeof step.agent !== "string") {
-      throw new Error(`step[${i}]: agent is required and must be a string`);
-    }
 
     return {
       id: step.id,
-      agent: step.agent,
+      agent: typeof step.agent === "string" ? step.agent : undefined,
       prompt: step.prompt,
       condition: validateCondition(step.condition),
     };
@@ -64,6 +61,7 @@ export async function loadChain(name: string, chainDir?: string): Promise<ChainD
   const def: ChainDefinition = {
     name: parsed.data.name,
     description: parsed.data.description,
+    default_agent: typeof parsed.data.default_agent === "string" ? parsed.data.default_agent : undefined,
     default_model: parsed.data.default_model || "anthropic/claude-sonnet-4-6",
     loop: typeof parsed.data.loop === "number" ? parsed.data.loop : 1,
     steps: validateSteps(parsed.data.steps),
