@@ -105,12 +105,23 @@ The AI will call `chain_start({ name: "generate-component", input: "button" })` 
 | `on_success`| Only if no errors in previous steps   |
 | `on_error`  | Only if previous steps had errors     |
 
-## Tools
+## Usage
 
-| Tool          | Description                              |
-| ------------- | ---------------------------------------- |
-| `chain_start` | Execute a chain by name with input       |
-| `chain_list`  | List all available chain definitions     |
+After installation, `/chain` command langsung tersedia:
+
+```
+/chain generate-component button
+/chain bulk-generate "input text"
+/chain                          # lihat daftar chain
+```
+
+Plugin juga register dua tools yang bisa dipanggil AI secara otomatis:
+
+| Tool / Command  | Description                              |
+| --------------- | ---------------------------------------- |
+| `/chain`        | User-facing command                      |
+| `chain_start`   | Execute a chain by name with input       |
+| `chain_list`    | List all available chain definitions     |
 
 ## Agent Resolution
 

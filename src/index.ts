@@ -6,6 +6,26 @@ const plugin: Plugin = async ({ client }) => {
   const chainDir = ".opencode/chains";
 
   return {
+    config: async (cfg) => {
+      const commands = (cfg as Record<string, any>).command ?? {};
+      commands.chain = {
+        description:
+          "Run a chain prompting workflow. " +
+          "Usage: /chain <name> <input>. " +
+          "Example: /chain generate-component button",
+        template: [
+          "The user wants to run a chain prompting workflow.",
+          "",
+          "Arguments: $ARGUMENTS",
+          "",
+          "If $1 is not provided, call chain_list to show available chains.",
+          "If $1 is provided, call chain_start with name=$1 and input=$2.",
+          "After execution, report the results back to the user.",
+        ].join("\n"),
+      };
+      (cfg as Record<string, any>).command = commands;
+    },
+
     tool: {
       chain_start: tool({
         description:
