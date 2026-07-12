@@ -49,6 +49,38 @@ const plugin: Plugin = async ({ client }) => {
         ].join("\n"),
       };
 
+      commands["chain new"] = {
+        description:
+          "Create a new chain definition file interactively. " +
+          "Usage: /chain new <name>. " +
+          "Example: /chain new deploy-app",
+        template: [
+          "The user wants to create a new chain named \"$1\".",
+          "Guide them through defining the steps interactively:",
+          "  1. What does the chain do? (set as description)",
+          "  2. How many steps? For each step:",
+          "     - What is the step ID? (lowercase hyphen-separated)",
+          "     - What prompt should be sent?",
+          "     - Which agent to use? (default: build)",
+          "     - Any condition? (on_success / on_error)",
+          "Create the file at .opencode/chains/$1.md.",
+          "",
+          "Chain file format (YAML frontmatter in .md):",
+          "  ---",
+          "  name: $1",
+          "  description: <what it does>",
+          "  steps:",
+          "    - id: <step-id>",
+          "      agent: <agent-name>",
+          "      prompt: |",
+          "        <instructions, use {input} / {lastResult}>",
+          "  ---",
+          "",
+          "After creating the file, suggest running it:",
+          "  /chain $1 <input>",
+        ].join("\n"),
+      };
+
       (cfg as Record<string, any>).command = commands;
     },
 

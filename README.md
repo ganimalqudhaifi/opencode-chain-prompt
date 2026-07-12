@@ -233,6 +233,7 @@ steps:
 |------------|-------------------|--------------------------------------------------|
 | Command    | `/chain`          | Run a chain: `/chain <name> <input>`               |
 | Command    | `/chain describe` | Show chain definition details                      |
+| Command    | `/chain new`      | Create a new chain definition interactively        |
 | Command    | `/chain stop`     | Stop the currently running chain                   |
 | Tool       | `chain_start`     | Execute a chain by name with input                |
 | Tool       | `chain_list`      | List all available chain definitions              |
