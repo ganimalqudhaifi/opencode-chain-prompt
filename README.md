@@ -229,11 +229,14 @@ steps:
 
 ## Available Tools & Commands
 
-| Interface  | Name           | Description                                     |
-|------------|----------------|-------------------------------------------------|
-| Command    | `/chain`       | User-facing command — delegates to `chain_start`  |
-| Tool       | `chain_start`  | Execute a chain by name with input               |
-| Tool       | `chain_list`   | List all available chain definitions             |
+| Interface  | Name              | Description                                      |
+|------------|-------------------|--------------------------------------------------|
+| Command    | `/chain`          | Run a chain: `/chain <name> <input>`               |
+| Command    | `/chain describe` | Show chain definition details                      |
+| Command    | `/chain stop`     | Stop the currently running chain                   |
+| Tool       | `chain_start`     | Execute a chain by name with input                |
+| Tool       | `chain_list`      | List all available chain definitions              |
+| Tool       | `chain_stop`      | Stop a running chain for the current session      |
 
 The AI calls `chain_start` and `chain_list` automatically; you only need to describe what you want.
 

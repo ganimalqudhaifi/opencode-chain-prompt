@@ -24,6 +24,31 @@ const plugin: Plugin = async ({ client }) => {
           "After execution, report the results back to the user.",
         ].join("\n"),
       };
+
+      commands["chain describe"] = {
+        description:
+          "Show the steps and configuration of a chain definition. " +
+          "Usage: /chain describe <name>. " +
+          "Example: /chain describe generate-component",
+        template: [
+          "The user wants to see the details of chain \"$1\".",
+          "Read .opencode/chains/$1.md and display its frontmatter " +
+          "(name, description, default_model, default_agent, loop) " +
+          "and all steps (id, agent, condition, prompt).",
+          "If the chain is not found, suggest available chains via chain_list.",
+        ].join("\n"),
+      };
+
+      commands["chain stop"] = {
+        description:
+          "Stop the currently running chain for this session. " +
+          "Usage: /chain stop",
+        template: [
+          "The user wants to stop the active chain.",
+          "Call chain_stop to abort it.",
+        ].join("\n"),
+      };
+
       (cfg as Record<string, any>).command = commands;
     },
 
@@ -147,6 +172,24 @@ const plugin: Plugin = async ({ client }) => {
             chains.map((name) => `  - ${name}`).join("\n") +
             "\n\nRun with chain_start tool or /chain <name> <input>"
           );
+        },
+      }),
+
+      chain_stop: tool({
+        description:
+          "Stop a running chain for the current session. " +
+          "Removes the chain progress so no more steps are injected.",
+
+        args: {},
+
+        async execute(
+          _args: Record<string, never>,
+          context: { sessionID: string },
+        ) {
+          const deleted = activeChains.delete(context.sessionID);
+          return deleted
+            ? "Chain stopped for this session."
+            : "No active chain running in this session.";
         },
       }),
     },
