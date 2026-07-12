@@ -16,7 +16,7 @@ graph TD;
 
 Instead of asking the AI to do everything at once (which often produces mediocre results), break it down into focused steps — each with its own agent, model, system prompt, and permissions.
 
-Execute the entire pipeline in one command. Repeat it 22 times with a single `loop` setting.
+Execute the entire pipeline in one command. Steps run in your current opencode session, inheriting its model and agent automatically — no configuration needed.
 
 ---
 
@@ -27,7 +27,7 @@ Execute the entire pipeline in one command. Repeat it 22 times with a single `lo
 | One-shot prompting ignores validation | Split into generate → validate → commit |
 | Code review needs a stricter persona | Assign `code-reviewer` agent with `edit: deny` |
 | Repetitive tasks done manually | Set `loop: 22` and walk away |
-| Context gets polluted across steps | Each step runs in its own session |
+| Context gets polluted across steps | Steps inject into your current session — no context switching |
 
 ---
 
@@ -122,7 +122,9 @@ The AI detects the `chain_start` tool and executes it automatically.
 |------------------|----------|----------------------------|--------------------------------------------|
 | `name`           | yes      | —                          | Chain identifier, lowercase hyphen-separated |
 | `description`    | no       | —                          | Human-readable description                 |
-| `loop`           | no       | `1`                        | Number of times to repeat the entire chain |
+| `default_model`  | no       | Inherits from active session | Model for chain steps                     |
+| `default_agent`  | no       | `"build"`                  | Default agent for all steps               |
+| `loop`           | no       | `1`                        | Number of times to repeat (WIP — single pass currently) |
 
 ### Step Fields
 
@@ -161,9 +163,7 @@ Example agent definition in `opencode.json`:
 
 | Condition    | Behavior                                       |
 |--------------|------------------------------------------------|
-| `"always"`   | Always execute (default)                       |
-| `"on_success"` | Only if no errors occurred in earlier steps    |
-| `"on_error"` | Only if earlier steps produced errors          |
+| `"always"`   | Always execute (default). All steps currently run unconditionally — `on_success` / `on_error` are parsed but not yet enforced. |
 
 ---
 
@@ -208,25 +208,22 @@ steps:
 ---
 ```
 
-### Bulk generation (loop)
-
-Generate 22 components automatically:
+### Bulk generation (loop) — WIP
 
 ```markdown
 ---
 name: bulk-generate
-loop: 22
+loop: 3
 steps:
   - id: generate
     prompt: |
       Generate a React {input} component.
-      Iteration {iteration} of {loop}.
+      Iteration {iteration}.
       Create the file at src/components/.
-  - id: commit
-    condition: on_success
-    prompt: Commit with message "feat: add {input} component (iter {iteration})".
 ---
 ```
+
+> **Note:** `loop` is parsed but the event-driven executor currently runs a single pass. Multi-iteration support is in progress.
 
 ---
 
