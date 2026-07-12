@@ -62,7 +62,7 @@ export async function loadChain(name: string, chainDir?: string): Promise<ChainD
     name: parsed.data.name,
     description: parsed.data.description,
     default_agent: typeof parsed.data.default_agent === "string" ? parsed.data.default_agent : undefined,
-    default_model: parsed.data.default_model || "anthropic/claude-sonnet-4-6",
+    default_model: parsed.data.default_model,
     loop: typeof parsed.data.loop === "number" ? parsed.data.loop : 1,
     steps: validateSteps(parsed.data.steps),
   };

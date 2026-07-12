@@ -1,6 +1,7 @@
 import { type Plugin, tool } from "@opencode-ai/plugin";
 import { loadChain, listChains } from "./chain-loader.js";
-import { executeChain } from "./chain-executor.js";
+import { renderTemplate } from "./utils.js";
+import { activeChains, findLastAssistantResponse, formatSummary } from "./chain-executor.js";
 
 const plugin: Plugin = async ({ client }) => {
   const chainDir = ".opencode/chains";
@@ -26,12 +27,72 @@ const plugin: Plugin = async ({ client }) => {
       (cfg as Record<string, any>).command = commands;
     },
 
+    event: async ({ event }) => {
+      if (event.type !== "session.idle") return;
+
+      const sessionID = event.properties.sessionID;
+      const progress = activeChains.get(sessionID);
+      if (!progress) return;
+
+      const chain = progress.chain;
+      const step = chain.steps[progress.stepIndex];
+
+      if (progress.stepIndex > 0 && step) {
+        const resultText = await findLastAssistantResponse(client, sessionID);
+        if (resultText) {
+          progress.context.results[step.id] = resultText;
+          progress.context.lastResult = resultText;
+        }
+      }
+
+      progress.stepIndex++;
+
+      if (progress.stepIndex >= chain.steps.length) {
+        activeChains.delete(sessionID);
+        const summary = formatSummary(progress.context);
+        try {
+          await client.session.promptAsync({
+            path: { id: sessionID },
+            body: {
+              parts: [{
+                type: "text",
+                text: `Chain "${chain.name}" completed.\n${summary}`,
+              }],
+            },
+          });
+        } catch {
+          // Ignore completion injection errors
+        }
+        return;
+      }
+
+      const nextStep = chain.steps[progress.stepIndex];
+      const nextPrompt = renderTemplate(nextStep.prompt, progress.context, []);
+
+      try {
+        await client.session.promptAsync({
+          path: { id: sessionID },
+          body: {
+            parts: [{
+              type: "text",
+              text: nextPrompt,
+            }],
+          },
+        });
+      } catch (err: any) {
+        activeChains.delete(sessionID);
+        progress.context.errors.push(
+          `Step "${nextStep.id}" failed to inject: ${err.message || err}`,
+        );
+      }
+    },
+
     tool: {
       chain_start: tool({
         description:
           "Run a chain prompting workflow. " +
-          "Executes sequence of prompt steps sequentially via SDK, " +
-          "each with its own agent/model. Supports looping and conditional branching. " +
+          "Executes sequence of prompt steps sequentially as subtasks in the current session. " +
+          "Supports looping and conditional branching. " +
           "Use when the user wants a multi-step automated workflow like generate → validate → commit.",
 
         args: {
@@ -39,26 +100,41 @@ const plugin: Plugin = async ({ client }) => {
           input: tool.schema.string(),
         },
 
-        async execute(args: { name: string; input: string }) {
+        async execute(
+          args: { name: string; input: string },
+          context: { sessionID: string; agent: string },
+        ) {
           const chain = await loadChain(args.name, chainDir);
-          const result = await executeChain(chain, {
+
+          if (chain.steps.length === 0) {
+            return `Chain "${args.name}" has no steps.`;
+          }
+
+          const ctx = {
             input: args.input,
-            sdkClient: client,
-            chainDir,
+            iteration: 0,
+            results: {} as Record<string, string>,
+            lastResult: "",
+            errors: [] as string[],
+          };
+
+          activeChains.set(context.sessionID, {
+            chain,
+            context: ctx,
+            stepIndex: 0,
+            opts: {
+              input: args.input,
+              agent: context.agent,
+            },
           });
 
-          if (!result.success) {
-            return `Chain "${args.name}" failed at iteration ${result.context.iteration + 1}.\nError: ${result.error}`;
-          }
+          const firstStep = chain.steps[0];
+          const agentName = firstStep.agent || chain.default_agent || context.agent;
 
-          if (chain.loop > 1) {
-            return (
-              `Chain "${args.name}" completed (${chain.loop} iterations).\n` +
-              formatSummary(result.context)
-            );
-          }
-
-          return `Chain "${args.name}" completed.\n` + formatSummary(result.context);
+          return (
+            `Chain "${args.name}" started with step "${firstStep.id}" (agent: ${agentName}).\n` +
+            `Progress will appear in the conversation step by step.`
+          );
         },
       }),
 
@@ -87,24 +163,5 @@ const plugin: Plugin = async ({ client }) => {
     },
   };
 };
-
-function formatSummary(context: {
-  results: Record<string, string>;
-  errors: string[];
-  lastResult: string;
-}): string {
-  const parts: string[] = [];
-  for (const [id, result] of Object.entries(context.results)) {
-    const preview = result.length > 200 ? result.slice(0, 200) + "..." : result;
-    parts.push(`[${id}]: ${preview}`);
-  }
-  if (context.errors.length > 0) {
-    parts.push(`\nErrors: ${context.errors.length}`);
-    for (const err of context.errors.slice(0, 3)) {
-      parts.push(`  - ${err}`);
-    }
-  }
-  return parts.join("\n");
-}
 
 export default plugin;

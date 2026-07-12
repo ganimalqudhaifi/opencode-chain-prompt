@@ -11,7 +11,7 @@ export interface ChainDefinition {
   name: string;
   description?: string;
   default_agent?: string;
-  default_model: string;
+  default_model?: string;
   loop: number;
   steps: ChainStep[];
 }
