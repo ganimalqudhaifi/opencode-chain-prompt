@@ -3,33 +3,18 @@
 Run multi-step AI workflows in [OpenCode](https://opencode.ai) — fully automated, sequentially chained, with per-step agent control.
 
 ```mermaid
-sequenceDiagram
-    actor User
-    participant Plugin
-    participant SDK as OpenCode SDK
+flowchart LR
+    U["/chain generate-component 'button'"]
+    U --> P{"chain_start"}
+    
+    P --> S1["1. Generate"]
+    S1 --> S2["2. Validate"]
+    S2 --> S3["3. Commit"]
+    S3 --> R["✓ Done"]
 
-    User->>Plugin: /chain generate-component "button"
-    Plugin->>SDK: session.create() + session.prompt()
-
-    rect rgb(240, 248, 255)
-        Note over SDK: Step 1 — generate
-        SDK->>SDK: agent: build<br/>model: claude-sonnet-4<br/>tools: edit, bash
-        SDK-->>Plugin: component source code
-    end
-
-    rect rgb(255, 250, 240)
-        Note over SDK: Step 2 — validate
-        SDK->>SDK: agent: code-reviewer<br/>model: claude-haiku-4<br/>tools: read only
-        SDK-->>Plugin: review feedback
-    end
-
-    rect rgb(240, 255, 240)
-        Note over SDK: Step 3 — commit (on_success)
-        SDK->>SDK: agent: build<br/>model: claude-sonnet-4<br/>tools: edit, bash
-        SDK-->>Plugin: commit result
-    end
-
-    Plugin->>User: Chain complete — summary
+    S1 -.- A1["agent: build · model: sonnet-4"]
+    S2 -.- A2["agent: code-reviewer · read-only"]
+    S3 -.- A3["agent: build · on success"]
 ```
 
 Instead of asking the AI to do everything at once (which often produces mediocre results), break it down into focused steps — each with its own agent, model, system prompt, and permissions.
