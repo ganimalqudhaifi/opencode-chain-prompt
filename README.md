@@ -47,8 +47,16 @@ Execute the entire pipeline in one command. Repeat it 22 times with a single `lo
 
 ### Local / development
 
+```bash
+git clone https://github.com/ganimalqudhaifi/opencode-chain-prompt.git
+cd opencode-chain-prompt
+npm install
+npm run build
+```
+
+Then in your `opencode.json`:
+
 ```json
-// opencode.json
 {
   "plugin": ["/absolute/path/to/opencode-chain-prompt/dist/index.js"]
 }
