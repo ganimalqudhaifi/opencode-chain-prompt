@@ -3,11 +3,15 @@
 Run multi-step AI workflows in [OpenCode](https://opencode.ai) — fully automated, sequentially chained, with per-step agent control.
 
 ```mermaid
-graph LR;
-    A[User] -->|chain_start| B(generate);
-    B -->|on success| C(validate);
-    C -->|on success| D(commit);
+graph TD;
+    A[User: /chain generate-component] --> B[Prompt 1: Generate component];
+    B --> C[Prompt 2: Validate code];
+    C --> D[Prompt 3: Commit changes];
     D --> E[Done];
+
+    B -.-> F[agent: build];
+    C -.-> G[agent: code-reviewer];
+    D -.-> H[agent: build];
 ```
 
 Instead of asking the AI to do everything at once (which often produces mediocre results), break it down into focused steps — each with its own agent, model, system prompt, and permissions.
