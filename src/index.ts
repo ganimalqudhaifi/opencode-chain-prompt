@@ -35,39 +35,25 @@ const plugin: Plugin = async ({ client }) => {
       if (!progress) return;
 
       const chain = progress.chain;
-      const step = chain.steps[progress.stepIndex];
 
-      if (progress.stepIndex > 0 && step) {
+      // Capture result of the previous step that was sent
+      if (progress.stepSentId) {
         const resultText = await findLastAssistantResponse(client, sessionID);
         if (resultText) {
-          progress.context.results[step.id] = resultText;
+          progress.context.results[progress.stepSentId] = resultText;
           progress.context.lastResult = resultText;
         }
       }
 
-      progress.stepIndex++;
-
+      // All steps done — silent cleanup
       if (progress.stepIndex >= chain.steps.length) {
         activeChains.delete(sessionID);
-        const summary = formatSummary(progress.context);
-        try {
-          await client.session.promptAsync({
-            path: { id: sessionID },
-            body: {
-              parts: [{
-                type: "text",
-                text: `Chain "${chain.name}" completed.\n${summary}`,
-              }],
-            },
-          });
-        } catch {
-          // Ignore completion injection errors
-        }
         return;
       }
 
-      const nextStep = chain.steps[progress.stepIndex];
-      const nextPrompt = renderTemplate(nextStep.prompt, progress.context, []);
+      // Send the current step's prompt
+      const step = chain.steps[progress.stepIndex];
+      const prompt = renderTemplate(step.prompt, progress.context, []);
 
       try {
         await client.session.promptAsync({
@@ -75,14 +61,16 @@ const plugin: Plugin = async ({ client }) => {
           body: {
             parts: [{
               type: "text",
-              text: nextPrompt,
+              text: prompt,
             }],
           },
         });
+        progress.stepSentId = step.id;
+        progress.stepIndex++;
       } catch (err: any) {
         activeChains.delete(sessionID);
         progress.context.errors.push(
-          `Step "${nextStep.id}" failed to inject: ${err.message || err}`,
+          `Step "${step.id}" failed to inject: ${err.message || err}`,
         );
       }
     },
@@ -122,6 +110,7 @@ const plugin: Plugin = async ({ client }) => {
             chain,
             context: ctx,
             stepIndex: 0,
+            stepSentId: null,
             opts: {
               input: args.input,
               agent: context.agent,
