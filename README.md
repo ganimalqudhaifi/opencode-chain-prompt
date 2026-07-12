@@ -2,31 +2,34 @@
 
 Run multi-step AI workflows in [OpenCode](https://opencode.ai) — fully automated, sequentially chained, with per-step agent control.
 
-```
-User                            Plugin
- │                                │
- ├─ /chain generate-component    │
- │   "button"                    │
- │                                │
- │  ┌── Step 1: generate ──────┐  │
- │  │  agent: build            │  │
- │  │  "Create a Button        │  │
- │  │   component..."          │  │
- │  └──────────────────────────┘  │
- │           │                    │
- │  ┌── Step 2: validate ──────┐  │
- │  │  agent: code-reviewer    │  │
- │  │  "Review the code..."    │  │
- │  │  (read-only)             │  │
- │  └──────────────────────────┘  │
- │           │                    │
- │  ┌── Step 3: commit ────────┐  │
- │  │  agent: build            │  │
- │  │  "Commit with message"   │  │
- │  │  (only if success)       │  │
- │  └──────────────────────────┘  │
- │           │                    │
- │  ◀── Result ───────────────── │
+```mermaid
+sequenceDiagram
+    actor User
+    participant Plugin
+    participant SDK as OpenCode SDK
+
+    User->>Plugin: /chain generate-component "button"
+    Plugin->>SDK: session.create() + session.prompt()
+
+    rect rgb(240, 248, 255)
+        Note over SDK: Step 1 — generate
+        SDK->>SDK: agent: build<br/>model: claude-sonnet-4<br/>tools: edit, bash
+        SDK-->>Plugin: component source code
+    end
+
+    rect rgb(255, 250, 240)
+        Note over SDK: Step 2 — validate
+        SDK->>SDK: agent: code-reviewer<br/>model: claude-haiku-4<br/>tools: read only
+        SDK-->>Plugin: review feedback
+    end
+
+    rect rgb(240, 255, 240)
+        Note over SDK: Step 3 — commit (on_success)
+        SDK->>SDK: agent: build<br/>model: claude-sonnet-4<br/>tools: edit, bash
+        SDK-->>Plugin: commit result
+    end
+
+    Plugin->>User: Chain complete — summary
 ```
 
 Instead of asking the AI to do everything at once (which often produces mediocre results), break it down into focused steps — each with its own agent, model, system prompt, and permissions.
