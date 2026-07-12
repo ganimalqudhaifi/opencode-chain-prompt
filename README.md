@@ -267,7 +267,7 @@ The AI calls `chain_start` and `chain_list` automatically; you only need to desc
 
 ## Related
 
-- [chain-generator skill](.opencode/skills/chain-generator/SKILL.md) — Ask the AI to create a chain definition for you
+- [chain-generator skill](SKILLS/chain-generator/SKILL.md) — Ask the AI to create a chain definition for you
 - [Example chains](examples/chains/) — Ready-to-use chain files
 
 ---
