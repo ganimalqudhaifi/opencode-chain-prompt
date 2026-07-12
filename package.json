@@ -1,6 +1,6 @@
 {
   "name": "opencode-chain-prompt",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "OpenCode plugin for sequential chain prompting with per-step agent selection, looping, and conditional branching",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
