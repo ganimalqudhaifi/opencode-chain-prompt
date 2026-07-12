@@ -73,8 +73,6 @@ Create a file at `.opencode/chains/generate-component.md`:
 ---
 name: generate-component
 description: Generate, validate, and commit a React component
-default_agent: build
-default_model: anthropic/claude-sonnet-4-6
 loop: 1
 steps:
   - id: generate
@@ -100,8 +98,6 @@ steps:
       Format: "feat(components): add {input} component"
 ```
 
-> `agent` is optional per step — if omitted, it inherits from `default_agent`. Set `agent` explicitly only when a step needs a different role (like `code-reviewer`).
-
 ### 2. Run it
 
 ```
@@ -126,8 +122,6 @@ The AI detects the `chain_start` tool and executes it automatically.
 |------------------|----------|----------------------------|--------------------------------------------|
 | `name`           | yes      | —                          | Chain identifier, lowercase hyphen-separated |
 | `description`    | no       | —                          | Human-readable description                 |
-| `default_agent`  | no       | `"build"`                  | Agent inherited by steps without explicit `agent` |
-| `default_model`  | no       | `anthropic/claude-sonnet-4-6` | Fallback model for the chain              |
 | `loop`           | no       | `1`                        | Number of times to repeat the entire chain |
 
 ### Step Fields
@@ -135,23 +129,9 @@ The AI detects the `chain_start` tool and executes it automatically.
 | Field       | Required | Default      | Description                                       |
 |-------------|----------|--------------|---------------------------------------------------|
 | `id`        | yes      | —            | Unique step identifier, used as `{id}` in templates |
-| `agent`     | no       | `default_agent` → `"build"` | Agent name for this step                      |
+| `agent`     | no       | `"build"`          | Agent name for this step                      |
 | `prompt`    | yes      | —            | Instructions sent to the LLM                      |
 | `condition` | no       | `"always"`   | When to execute this step (see branching below)   |
-
-### Agent Resolution
-
-The agent name is resolved with this fallback:
-
-```
-step.agent → chain.default_agent → "build"
-```
-
-Once resolved, the agent config is loaded from (in order):
-
-1. `opencode.json` — `agent.<name>.model`, `agent.<name>.prompt` (system prompt)
-2. `.opencode/agents/<name>.md` — frontmatter + file body = system prompt
-3. `~/.config/opencode/agents/<name>.md`
 
 Example agent definition in `opencode.json`:
 
@@ -196,7 +176,6 @@ All steps share the same agent — no repetition needed:
 ```markdown
 ---
 name: refactor-all
-default_agent: build
 loop: 1
 steps:
   - id: refactor
@@ -214,7 +193,6 @@ steps:
 ```markdown
 ---
 name: review-and-merge
-default_agent: build
 loop: 1
 steps:
   - id: implement
@@ -237,7 +215,6 @@ Generate 22 components automatically:
 ```markdown
 ---
 name: bulk-generate
-default_agent: build
 loop: 22
 steps:
   - id: generate
